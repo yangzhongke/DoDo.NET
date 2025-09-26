@@ -1,0 +1,96 @@
+**************User****************
+I want you to create a .NET class library that can extract text from all kinds of files, including but not limited to *.pdf, *.txt, *.json, *.md, *.html, *.htm, *doc, *.docx, *.xml, *.xls, *.xlsx, *.csv, *.ppt, *.pptx, you can add more supported files that contains text information.
+The library should be extensible, which means if I want to add a new file format, I just need to add a new class without changing existing code. Don't use relfection, because it's not AOT friendly. You can use source generator(reference only).
+Eachreturn value type should contain the original file full path and the text.
+The core method names are: 
+ReadFromFiles(param string[] files);
+ReadFromDirectory(string directory);
+ReadFromDirectories(string directory);
+
+Do not create right now. 
+Do you have any questions?
+
+********System*********
+I understand your requirements for creating a .NET class library that can extract text from various file formats. Let me clarify a few things before proceeding:
+Project Structure: Should I create this as a separate class library project within your existing solution, or modify the existing console application to include the library functionality?
+Return Type: You mentioned the return value should contain the original file path and extracted text. Should this be:
+A custom class like FileTextResult with properties for FilePath and Text?
+A collection of such objects for methods that process multiple files?
+Directory Processing: For the ReadFromDirectories method, should this:
+Process all subdirectories recursively?
+Have options for controlling recursion depth?
+Include file filtering by supported extensions?
+Extension Pattern: For the extensible design without reflection, I'm thinking of using:
+An interface like ITextExtractor
+A registry pattern to register extractors
+Source generators to automatically discover and register extractors at compile time
+Is this approach aligned with your vision?
+Error Handling: How should the library handle:
+Files that can't be read (permissions, corruption, etc.)?
+Unsupported file formats?
+Should errors be collected and returned, or should exceptions be thrown?
+Dependencies: For file format support, we'll likely need NuGet packages like:
+iTextSharp/iText7 for PDF
+DocumentFormat.OpenXml for Office documents
+EPPlus for Excel files
+HtmlAgilityPack for HTML
+Is it acceptable to include these dependencies?
+Performance: Should the library support:
+Async operations for better performance with large files?
+Parallel processing when handling multiple files?
+Please let me know your preferences on these points so I can design the library exactly as you need it.
+*************User****************
+1. In the existing solution.
+2. A collection of FileTextResult
+3. Process all subdirectories recursively.
+Have options for controlling recursion depth? Yes.
+Include file filtering by supported extensions? Yes.
+4. Yes. Good!
+5. Provide an event/callback to listen the failed file without throwing errors. If no listener, write error to console.
+6. Yes.
+7. Both are yes.
+
+One more thing: when read text files(like *.txt, *.html, *.md), the library should can detect the file's encoding.
+
+Do not create right now. 
+Do you have any questions? If no, tell me what you are going to do.
+
+************System**************
+Perfect! I have all the information I need. Here's what I'm going to create:
+Library Design Overview
+Project Structure:
+Add the text extraction functionality to the existing DoDo.Net project
+Create a well-organized folder structure for the text extraction components
+Core Components:
+FileTextResult - Data class containing FilePath and Text properties
+ITextExtractor - Interface for all file format extractors
+TextExtractionService - Main service class with the three required methods
+ExtractorRegistry - Registry to manage extractors without reflection
+Source Generator - To automatically discover and register extractors at compile-time
+File Format Support:
+Text files (txt, md, html, htm, xml, csv, json) with automatic encoding detection
+PDF files using iText7
+Office documents (doc, docx, xls, xlsx, ppt, pptx) using DocumentFormat.OpenXml and other libraries
+Extensible architecture for adding new formats
+Key Features:
+Async/Parallel Processing - All operations will be async with parallel processing support
+Recursive Directory Processing - With configurable depth control
+File Extension Filtering - Only process supported file types
+Error Handling - Event-based error reporting with console fallback
+Encoding Detection - Automatic encoding detection for text files
+AOT-Friendly - No reflection, using source generators instead
+Core Methods:
+Task<IEnumerable<FileTextResult>> ReadFromFilesAsync(params string[] files)
+Task<IEnumerable<FileTextResult>> ReadFromDirectoryAsync(string directory, int maxDepth = int.MaxValue, bool recursive = true)
+Task<IEnumerable<FileTextResult>> ReadFromDirectoriesAsync(string[] directories, int maxDepth = int.MaxValue, bool recursive = true)
+Error Handling:
+event EventHandler<TextExtractionErrorEventArgs> ExtractionError
+Graceful handling of file access issues, unsupported formats, and processing errors
+The library will be fully extensible - adding support for new file formats will only require creating a new class implementing ITextExtractor and the source generator will automatically register it.
+Ready to proceed with the implementation!
+
+********User****************
+Good! Start!
+
+
+todo: CICD/AIT/custom reader checking
