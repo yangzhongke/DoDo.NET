@@ -38,11 +38,9 @@ var sampleFiles = new[]
     "sample.md"
 };
 
-var results = await textExtractor.ReadFromFilesAsync(sampleFiles);
-
-foreach (var result in results)
+await foreach (var result in textExtractor.ReadFromFilesAsync(sampleFiles))
 {
-    Console.WriteLine($"File: {result.FileName}");
+    Console.WriteLine($"File: {result.FilePath}");
     Console.WriteLine($"Text Preview: {TruncateText(result.Text, 100)}");
     Console.WriteLine();
 }
@@ -51,12 +49,10 @@ foreach (var result in results)
 Console.WriteLine("Demo 2: Extract from current directory (non-recursive, max depth 1)");
 Console.WriteLine("--------------------------------------------------------------------");
 
-var directoryResults = await textExtractor.ReadFromDirectoryAsync(".", maxDepth: 1, recursive: false);
 
-Console.WriteLine($"Found {directoryResults.Count()} supported files in current directory:");
-foreach (var result in directoryResults)
+await foreach (var result in textExtractor.ReadFromDirectoryAsync(".", maxDepth: 1, recursive: false))
 {
-    Console.WriteLine($"  {result.FileName} - {result.Text.Length} characters");
+    Console.WriteLine($"  {result.FilePath} - {result.Text.Length} characters");
 }
 Console.WriteLine();
 
@@ -70,12 +66,8 @@ textExtractor.RegisterExtractor(new CustomLogExtractor());
 // Create a sample log file
 await File.WriteAllTextAsync("sample.log", "[2024-01-01 10:00:00] INFO: Application started\n[2024-01-01 10:00:01] DEBUG: Loading configuration\n[2024-01-01 10:00:02] INFO: Ready to serve requests");
 
-var logResults = await textExtractor.ReadFromFilesAsync("sample.log");
-foreach (var result in logResults)
-{
-    Console.WriteLine($"Custom Log Extractor Result:");
-    Console.WriteLine(result.Text);
-}
+var logResult = await textExtractor.ExtractFromSingleFileAsync("sample.log");
+Console.WriteLine(logResult.Text);
 
 Console.WriteLine();
 Console.WriteLine("Demo completed successfully!");

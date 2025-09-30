@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using DoDo.Net.TextExtraction.Extractors;
 
 namespace DoDo.Net.TextExtraction;
@@ -37,67 +36,28 @@ public class TextExtractionService
     /// <summary>
     /// Extracts text from multiple files
     /// </summary>
-    public async Task<IEnumerable<FileTextResult>> ReadFromFilesAsync(params string[] files)
+    public async IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(params string[] files)
     {
-        var results = new ConcurrentBag<FileTextResult>();
-        var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
-        
-        var tasks = files.Select(async filePath =>
+        foreach (var filePath in files)
         {
-            await semaphore.WaitAsync();
-            try
-            {
-                var result = await ExtractFromSingleFileAsync(filePath);
-                if (result != null)
-                {
-                    results.Add(result);
-                }
-            }
-            finally
-            {
-                semaphore.Release();
-            }
-        });
-        
-        await Task.WhenAll(tasks);
-        return results.OrderBy(r => r.FilePath);
+            var result = await ExtractFromSingleFileAsync(filePath);
+            yield return result;
+        }
     }
     
     /// <summary>
     /// Extracts text from all supported files in a directory
     /// </summary>
-    public async Task<IEnumerable<FileTextResult>> ReadFromDirectoryAsync(
+    public async IAsyncEnumerable<FileTextResult> ReadFromDirectoryAsync(
         string directory, 
         int maxDepth = int.MaxValue, 
         bool recursive = true)
     {
-        return await ReadFromDirectoriesAsync(new[] { directory }, maxDepth, recursive);
-    }
-    
-    /// <summary>
-    /// Extracts text from all supported files in multiple directories
-    /// </summary>
-    public async Task<IEnumerable<FileTextResult>> ReadFromDirectoriesAsync(
-        string[] directories, 
-        int maxDepth = int.MaxValue, 
-        bool recursive = true)
-    {
-        var allFiles = new List<string>();
-        
-        foreach (var directory in directories)
+        var files = GetSupportedFilesFromDirectory(directory, maxDepth, recursive);
+        foreach (var filePath in files)
         {
-            if (!Directory.Exists(directory))
-            {
-                OnExtractionError(directory, new DirectoryNotFoundException($"Directory not found: {directory}"), 
-                    $"Directory not found: {directory}");
-                continue;
-            }
-            
-            var files = GetSupportedFilesFromDirectory(directory, maxDepth, recursive);
-            allFiles.AddRange(files);
+            yield return await ExtractFromSingleFileAsync(filePath);
         }
-        
-        return await ReadFromFilesAsync(allFiles.ToArray());
     }
     
     private void RegisterDefaultExtractors()
@@ -111,7 +71,7 @@ public class TextExtractionService
         _registry.RegisterExtractor(new PowerPointExtractor());
     }
     
-    private async Task<FileTextResult?> ExtractFromSingleFileAsync(string filePath)
+    public async Task<FileTextResult> ExtractFromSingleFileAsync(string filePath)
     {
         try
         {
@@ -119,7 +79,7 @@ public class TextExtractionService
             {
                 OnExtractionError(filePath, new FileNotFoundException($"File not found: {filePath}"), 
                     $"File not found: {filePath}");
-                return null;
+                return new FileTextResult{ FilePath = filePath, Success = false, ErrorMessage = "File not found" };
             }
             
             var extension = Path.GetExtension(filePath);
@@ -127,7 +87,7 @@ public class TextExtractionService
             {
                 OnExtractionError(filePath, new NotSupportedException($"Unsupported file extension: {extension}"), 
                     $"Unsupported file extension: {extension}");
-                return null;
+                return new FileTextResult{ FilePath = filePath, Success = false, ErrorMessage = "Unsupported file extension" };
             }
             
             var text = await extractor!.ExtractTextAsync(filePath);
@@ -135,13 +95,14 @@ public class TextExtractionService
             return new FileTextResult
             {
                 FilePath = Path.GetFullPath(filePath),
-                Text = text ?? string.Empty
+                Text = text,
+                Success = true
             };
         }
         catch (Exception ex)
         {
             OnExtractionError(filePath, ex, $"Error extracting text from {filePath}: {ex.Message}");
-            return null;
+            return new FileTextResult{ FilePath = filePath, Success = false, ErrorMessage = ex.Message };
         }
     }
     

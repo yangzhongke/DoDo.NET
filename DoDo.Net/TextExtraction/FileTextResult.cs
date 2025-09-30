@@ -13,15 +13,9 @@ public record FileTextResult
     /// <summary>
     /// The extracted text content from the file
     /// </summary>
-    public required string Text { get; init; }
+    public string? Text { get; init; }
+
+    public required bool Success { get; init; }
     
-    /// <summary>
-    /// The file extension (for reference)
-    /// </summary>
-    public string Extension => Path.GetExtension(FilePath).ToLowerInvariant();
-    
-    /// <summary>
-    /// The file name without path
-    /// </summary>
-    public string FileName => Path.GetFileName(FilePath);
+    public string? ErrorMessage { get; init; }
 }
