@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using DoDo.Net.TextExtraction.Extractors;
 
 namespace DoDo.Net.TextExtraction;
@@ -36,11 +37,12 @@ public class TextExtractionService
     /// <summary>
     /// Extracts text from multiple files
     /// </summary>
-    public async IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(params string[] files)
+    public async IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(string[] files, 
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         foreach (var filePath in files)
         {
-            var result = await ExtractFromSingleFileAsync(filePath);
+            var result = await ExtractFromSingleFileAsync(filePath, cancellationToken);
             yield return result;
         }
     }
@@ -51,12 +53,12 @@ public class TextExtractionService
     public async IAsyncEnumerable<FileTextResult> ReadFromDirectoryAsync(
         string directory, 
         int maxDepth = int.MaxValue, 
-        bool recursive = true)
+        bool recursive = true, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var files = GetSupportedFilesFromDirectory(directory, maxDepth, recursive);
         foreach (var filePath in files)
         {
-            yield return await ExtractFromSingleFileAsync(filePath);
+            yield return await ExtractFromSingleFileAsync(filePath, cancellationToken);
         }
     }
     
@@ -71,7 +73,7 @@ public class TextExtractionService
         _registry.RegisterExtractor(new PowerPointExtractor());
     }
     
-    public async Task<FileTextResult> ExtractFromSingleFileAsync(string filePath)
+    public async Task<FileTextResult> ExtractFromSingleFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -90,7 +92,7 @@ public class TextExtractionService
                 return new FileTextResult{ FilePath = filePath, Success = false, ErrorMessage = "Unsupported file extension" };
             }
             
-            var text = await extractor!.ExtractTextAsync(filePath);
+            var text = await extractor!.ExtractTextAsync(filePath, cancellationToken);
             
             return new FileTextResult
             {
