@@ -66,7 +66,7 @@ textExtractor.RegisterExtractor(new CustomLogExtractor());
 // Create a sample log file
 await File.WriteAllTextAsync("sample.log", "[2024-01-01 10:00:00] INFO: Application started\n[2024-01-01 10:00:01] DEBUG: Loading configuration\n[2024-01-01 10:00:02] INFO: Ready to serve requests");
 
-var logResult = await textExtractor.ExtractFromSingleFileAsync("sample.log");
+var logResult = await textExtractor.ReadFromFileAsync("sample.log");
 Console.WriteLine(logResult.Text);
 
 Console.WriteLine();

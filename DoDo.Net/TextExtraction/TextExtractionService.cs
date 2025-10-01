@@ -3,10 +3,11 @@ using DoDo.Net.TextExtraction.Extractors;
 
 namespace DoDo.Net.TextExtraction;
 
+
 /// <summary>
 /// Main service for extracting text from various file formats
 /// </summary>
-public class TextExtractionService
+public class TextExtractionService : ITextExtractionService
 {
     private readonly ExtractorRegistry _registry;
     
@@ -42,7 +43,7 @@ public class TextExtractionService
     {
         foreach (var filePath in files)
         {
-            var result = await ExtractFromSingleFileAsync(filePath, cancellationToken);
+            var result = await ReadFromFileAsync(filePath, cancellationToken);
             yield return result;
         }
     }
@@ -58,7 +59,7 @@ public class TextExtractionService
         var files = GetSupportedFilesFromDirectory(directory, maxDepth, recursive);
         foreach (var filePath in files)
         {
-            yield return await ExtractFromSingleFileAsync(filePath, cancellationToken);
+            yield return await ReadFromFileAsync(filePath, cancellationToken);
         }
     }
     
@@ -73,7 +74,7 @@ public class TextExtractionService
         _registry.RegisterExtractor(new PowerPointExtractor());
     }
     
-    public async Task<FileTextResult> ExtractFromSingleFileAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task<FileTextResult> ReadFromFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
