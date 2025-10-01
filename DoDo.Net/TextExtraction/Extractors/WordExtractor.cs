@@ -1,86 +1,65 @@
-using System.Text;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using DocumentFormat.OpenXml;
+using System.Text;
 
 namespace DoDo.Net.TextExtraction.Extractors;
 
 /// <summary>
-/// Extracts text from Word documents (.docx format) using OpenXml
+/// Extractor for Word documents using DocumentFormat.OpenXml
 /// </summary>
 public class WordExtractor : ITextExtractor
 {
-    public IReadOnlySet<string> SupportedExtensions { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    public bool IsSupported(string filePath)
     {
-        ".docx"
-    };
+        return FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.WordExtensions);
+    }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
         {
-            using var document = WordprocessingDocument.Open(filePath, false);
-            var body = document.MainDocumentPart?.Document?.Body;
-            
-            if (body == null)
-                return string.Empty;
+            try
+            {
+                using var document = WordprocessingDocument.Open(filePath, false);
+                var body = document.MainDocumentPart?.Document?.Body;
                 
-            return ExtractTextFromBody(body);
+                if (body == null)
+                    return string.Empty;
+                
+                var textBuilder = new StringBuilder();
+                ExtractTextFromElement(body, textBuilder);
+                
+                return textBuilder.ToString().Trim();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to extract text from Word document: {ex.Message}", ex);
+            }
         }, cancellationToken);
     }
-    
-    private static string ExtractTextFromBody(Body body)
+
+    private static void ExtractTextFromElement(OpenXmlElement element, StringBuilder textBuilder)
     {
-        var text = new StringBuilder();
-        
-        foreach (var element in body.Elements())
+        foreach (var child in element.Elements())
         {
-            if (element is Paragraph paragraph)
+            if (child is Text textElement)
             {
-                text.AppendLine(ExtractTextFromParagraph(paragraph));
+                textBuilder.Append(textElement.Text);
             }
-            else if (element is Table table)
+            else if (child is Paragraph)
             {
-                text.AppendLine(ExtractTextFromTable(table));
+                ExtractTextFromElement(child, textBuilder);
+                textBuilder.AppendLine();
+            }
+            else if (child is Run || child is Break)
+            {
+                ExtractTextFromElement(child, textBuilder);
+            }
+            else
+            {
+                ExtractTextFromElement(child, textBuilder);
             }
         }
-        
-        return text.ToString();
-    }
-    
-    private static string ExtractTextFromParagraph(Paragraph paragraph)
-    {
-        var text = new StringBuilder();
-        
-        foreach (var run in paragraph.Elements<Run>())
-        {
-            foreach (var textElement in run.Elements<Text>())
-            {
-                text.Append(textElement.Text);
-            }
-        }
-        
-        return text.ToString();
-    }
-    
-    private static string ExtractTextFromTable(Table table)
-    {
-        var text = new StringBuilder();
-        
-        foreach (var row in table.Elements<TableRow>())
-        {
-            var rowText = new List<string>();
-            foreach (var cell in row.Elements<TableCell>())
-            {
-                var cellText = new StringBuilder();
-                foreach (var paragraph in cell.Elements<Paragraph>())
-                {
-                    cellText.Append(ExtractTextFromParagraph(paragraph));
-                }
-                rowText.Add(cellText.ToString().Trim());
-            }
-            text.AppendLine(string.Join("\t", rowText));
-        }
-        
-        return text.ToString();
     }
 }

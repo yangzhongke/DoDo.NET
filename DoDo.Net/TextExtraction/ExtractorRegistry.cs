@@ -1,41 +1,53 @@
 namespace DoDo.Net.TextExtraction;
 
 /// <summary>
-/// Registry for managing text extractors without using reflection
+/// Registry for managing text extractors with ordered registration and forward search
 /// </summary>
 public class ExtractorRegistry
 {
-    private readonly Dictionary<string, ITextExtractor> _extractors = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<ITextExtractor> _extractors = new();
     
     /// <summary>
-    /// Gets all supported file extensions
+    /// Registers a text extractor. Newly registered extractors are checked first.
     /// </summary>
-    public IReadOnlySet<string> SupportedExtensions => _extractors.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-    
-    /// <summary>
-    /// Registers a text extractor for specific file extensions
-    /// </summary>
+    /// <param name="extractor">The extractor to register</param>
     public void RegisterExtractor(ITextExtractor extractor)
     {
-        foreach (var extension in extractor.SupportedExtensions)
+        if (extractor == null)
+            throw new ArgumentNullException(nameof(extractor));
+            
+        _extractors.Add(extractor);
+    }
+    
+    /// <summary>
+    /// Tries to get an extractor for the specified file.
+    /// Searches forward through registered extractors (newest first).
+    /// </summary>
+    /// <param name="filePath">The file path to find an extractor for</param>
+    /// <param name="extractor">The found extractor, or null if none found</param>
+    /// <returns>True if an extractor was found</returns>
+    public bool TryGetExtractor(string filePath, out ITextExtractor? extractor)
+    {
+        // Search forward. newest registrations first so that new extractors can override specific files that older extractors handle
+        for (int i = _extractors.Count - 1; i >= 0; i--)
         {
-            _extractors[extension] = extractor;
+            var currentExtractor = _extractors[i];
+            if (currentExtractor.IsSupported(filePath))
+            {
+                extractor = currentExtractor;
+                return true;
+            }
         }
+        
+        extractor = null;
+        return false;
     }
     
     /// <summary>
-    /// Gets the appropriate extractor for a file extension
+    /// Gets all registered extractors (in registration order)
     /// </summary>
-    public bool TryGetExtractor(string extension, out ITextExtractor? extractor)
+    public IEnumerable<ITextExtractor> GetAllExtractors()
     {
-        return _extractors.TryGetValue(extension.ToLowerInvariant(), out extractor);
-    }
-    
-    /// <summary>
-    /// Checks if a file extension is supported
-    /// </summary>
-    public bool IsSupported(string extension)
-    {
-        return _extractors.ContainsKey(extension.ToLowerInvariant());
+        return _extractors.AsReadOnly();
     }
 }

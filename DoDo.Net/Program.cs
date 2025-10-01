@@ -15,11 +15,11 @@ textExtractor.ExtractionError += (sender, args) =>
 Console.WriteLine("=== DoDo.Net Text Extraction Library Demo ===");
 Console.WriteLine();
 
-// Display supported file extensions
-Console.WriteLine("Supported file extensions:");
-foreach (var extension in textExtractor.SupportedExtensions.OrderBy(x => x))
+// Display registered extractors
+Console.WriteLine("Registered extractors:");
+foreach (var extractor in textExtractor.RegisteredExtractors)
 {
-    Console.WriteLine($"  {extension}");
+    Console.WriteLine($"  {extractor.GetType().Name}");
 }
 Console.WriteLine();
 
@@ -38,7 +38,7 @@ var sampleFiles = new[]
     "sample.md"
 };
 
-await foreach (var result in textExtractor.ReadFromFilesAsync(sampleFiles))
+await foreach (var result in textExtractor.ReadFromFilesAsync(default, sampleFiles))
 {
     Console.WriteLine($"File: {result.FilePath}");
     Console.WriteLine($"Text Preview: {TruncateText(result.Text, 100)}");
@@ -64,10 +64,14 @@ Console.WriteLine("----------------------------------");
 textExtractor.RegisterExtractor(new CustomLogExtractor());
 
 // Create a sample log file
-await File.WriteAllTextAsync("sample.log", "[2024-01-01 10:00:00] INFO: Application started\n[2024-01-01 10:00:01] DEBUG: Loading configuration\n[2024-01-01 10:00:02] INFO: Ready to serve requests");
+await File.WriteAllTextAsync("sample.log", "[2024-01-01 10:00:00] INFO: Application started\n[2024-01-01 10:00:01] DEBUG: Loading configuration\n[2024-01-01 10:00:02] WARNING: Configuration file not found, using defaults\n[2024-01-01 10:00:03] ERROR: Failed to connect to database\n[2024-01-01 10:00:04] INFO: Ready to serve requests");
 
-var logResult = await textExtractor.ReadFromFileAsync("sample.log");
-Console.WriteLine(logResult.Text);
+await foreach (var result in textExtractor.ReadFromFilesAsync(CancellationToken.None, "sample.log"))
+{
+    Console.WriteLine($"Custom Log Extractor Result:");
+    Console.WriteLine(result.Text);
+    break; // Only process the first (and only) result
+}
 
 Console.WriteLine();
 Console.WriteLine("Demo completed successfully!");
@@ -141,29 +145,21 @@ static string TruncateText(string text, int maxLength)
 // Example of a custom extractor
 public class CustomLogExtractor : ITextExtractor
 {
-    public IReadOnlySet<string> SupportedExtensions { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    public bool IsSupported(string filePath)
     {
-        ".log"
-    };
+        return FileExtensionHelper.HasExtension(filePath, new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".log" });
+    }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
     {
         var content = await File.ReadAllTextAsync(filePath, cancellationToken);
         
-        // Custom processing: Extract only the message part from log entries
+        // Custom log processing - extract only ERROR and WARNING lines
         var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        var messages = new List<string>();
+        var importantLines = lines.Where(line => 
+            line.Contains("ERROR", StringComparison.OrdinalIgnoreCase) || 
+            line.Contains("WARNING", StringComparison.OrdinalIgnoreCase));
         
-        foreach (var line in lines)
-        {
-            // Simple log parsing: extract everything after the log level
-            var parts = line.Split("] ", 2);
-            if (parts.Length == 2)
-            {
-                messages.Add(parts[1]);
-            }
-        }
-        
-        return string.Join("\n", messages);
+        return string.Join('\n', importantLines);
     }
 }

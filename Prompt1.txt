@@ -95,3 +95,38 @@ Good! Start!
 
 todo: CICD/AIT/
 custom reader checking
+
+除了您已经支持的格式外，还有以下常见的包含文本的文件格式值得考虑支持：
+编程相关文件
+.cs, .js, .ts, .py, .java, .cpp, .c, .h - 源代码文件
+.sql - SQL脚本文件
+.ps1, .bat, .sh - 脚本文件
+富文本格式
+.rtf - 富文本格式
+.odt - OpenDocument文本文档
+.pages - Apple Pages文档
+电子表格格式
+.ods - OpenDocument电子表格
+.numbers - Apple Numbers文档
+演示文稿格式
+.odp - OpenDocument演示文稿
+.key - Apple Keynote演示文稿
+电子书格式
+.epub - 电子书格式
+.mobi - Kindle电子书格式
+其他文档格式
+.doc - 旧版Word文档
+.xls - 旧版Excel文档（您已支持）
+.ppt - 旧版PowerPoint演示文稿
+特殊文本格式
+.srt, .vtt - 字幕文件
+.properties - Java属性文件
+.env - 环境变量文件
+.gitignore, .gitattributes - Git配置文件
+建议优先支持的格式：
+源代码文件 (.cs, .js, .py等) - 开发场景常用
+.rtf - 仍然广泛使用的富文本格式
+.doc - 旧版Office文档兼容性
+.epub - 电子书文本提取
+.srt/.vtt - 字幕文件处理
+这些格式的支持可以显著扩展您的文本提取库的适用范围

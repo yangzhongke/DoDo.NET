@@ -4,14 +4,25 @@ using Ude;
 namespace DoDo.Net.TextExtraction.Extractors;
 
 /// <summary>
-/// Extracts text from plain text files with automatic encoding detection
+/// Extracts text from plain text files with automatic encoding detection.
+/// Acts as a fallback for any file under 1MB that other extractors don't support.
 /// </summary>
 public class PlainTextExtractor : ITextExtractor
 {
-    public IReadOnlySet<string> SupportedExtensions { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    private const long MaxFileSizeBytes = 1024 * 1024; // 1MB
+
+    public bool IsSupported(string filePath)
     {
-        ".txt", ".log", ".csv", ".tsv", ".json", ".xml", ".md", ".markdown", ".yml", ".yaml", ".ini", ".cfg", ".config"
-    };
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            return false;
+
+        // First check if it's a known text file extension
+        if (FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.TextExtensions))
+            return true;
+
+        // For unknown extensions, act as fallback for files under 1MB
+        return FileExtensionHelper.IsFileSizeUnder(filePath, MaxFileSizeBytes);
+    }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
     {

@@ -1,13 +1,12 @@
-using System.Runtime.CompilerServices;
 using DoDo.Net.TextExtraction.Extractors;
+using System.Runtime.CompilerServices;
 
 namespace DoDo.Net.TextExtraction;
-
 
 /// <summary>
 /// Main service for extracting text from various file formats
 /// </summary>
-public class TextExtractionService : ITextExtractionService
+public class TextExtractionService
 {
     private readonly ExtractorRegistry _registry;
     
@@ -23,9 +22,9 @@ public class TextExtractionService : ITextExtractionService
     }
     
     /// <summary>
-    /// Gets all supported file extensions
+    /// Gets all registered extractors
     /// </summary>
-    public IReadOnlySet<string> SupportedExtensions => _registry.SupportedExtensions;
+    public IEnumerable<ITextExtractor> RegisteredExtractors => _registry.GetAllExtractors();
     
     /// <summary>
     /// Registers a custom text extractor
@@ -38,43 +37,142 @@ public class TextExtractionService : ITextExtractionService
     /// <summary>
     /// Extracts text from multiple files
     /// </summary>
-    public async IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(string[] files, 
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default,
+        params string[] files)
     {
+        var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
+        var tasks = new List<Task<FileTextResult?>>();
+        
+        // Start all tasks
         foreach (var filePath in files)
         {
-            var result = await ReadFromFileAsync(filePath, cancellationToken);
-            yield return result;
+            var task = ProcessFileAsync(filePath, semaphore, cancellationToken);
+            tasks.Add(task);
         }
+        
+        // Yield results as they complete
+        while (tasks.Count > 0)
+        {
+            var completedTask = await Task.WhenAny(tasks);
+            tasks.Remove(completedTask);
+            
+            var result = await completedTask;
+            if (result != null)
+            {
+                yield return result;
+            }
+        }
+        
+        semaphore.Dispose();
     }
     
     /// <summary>
     /// Extracts text from all supported files in a directory
     /// </summary>
-    public async IAsyncEnumerable<FileTextResult> ReadFromDirectoryAsync(
+    public IAsyncEnumerable<FileTextResult> ReadFromDirectoryAsync(
         string directory, 
         int maxDepth = int.MaxValue, 
-        bool recursive = true, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        bool recursive = true,
+        CancellationToken cancellationToken = default)
     {
-        var files = GetSupportedFilesFromDirectory(directory, maxDepth, recursive);
-        foreach (var filePath in files)
+        return ReadFromDirectoriesAsync(new[] { directory }, maxDepth, recursive, cancellationToken);
+    }
+    
+    /// <summary>
+    /// Extracts text from all supported files in multiple directories
+    /// </summary>
+    public async IAsyncEnumerable<FileTextResult> ReadFromDirectoriesAsync(
+        string[] directories, 
+        int maxDepth = int.MaxValue, 
+        bool recursive = true,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
+        var activeTasks = new List<Task<FileTextResult?>>();
+        const int maxConcurrentTasks = 50; // Limit concurrent tasks to avoid overwhelming the system
+        
+        try
         {
-            yield return await ReadFromFileAsync(filePath, cancellationToken);
+            foreach (var directory in directories)
+            {
+                if (!Directory.Exists(directory))
+                {
+                    OnExtractionError(directory, new DirectoryNotFoundException($"Directory not found: {directory}"), 
+                        $"Directory not found: {directory}");
+                    continue;
+                }
+                
+                await foreach (var filePath in GetSupportedFilesFromDirectoryAsync(directory, maxDepth, recursive, cancellationToken))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    
+                    // Start processing the file
+                    var task = ProcessFileAsync(filePath, semaphore, cancellationToken);
+                    activeTasks.Add(task);
+                    
+                    // If we have too many concurrent tasks, wait for some to complete
+                    if (activeTasks.Count >= maxConcurrentTasks)
+                    {
+                        var completedTask = await Task.WhenAny(activeTasks);
+                        activeTasks.Remove(completedTask);
+                        
+                        var result = await completedTask;
+                        if (result != null)
+                        {
+                            yield return result;
+                        }
+                    }
+                }
+            }
+            
+            // Process remaining tasks
+            while (activeTasks.Count > 0)
+            {
+                var completedTask = await Task.WhenAny(activeTasks);
+                activeTasks.Remove(completedTask);
+                
+                var result = await completedTask;
+                if (result != null)
+                {
+                    yield return result;
+                }
+            }
+        }
+        finally
+        {
+            semaphore.Dispose();
         }
     }
     
     private void RegisterDefaultExtractors()
     {
-        // Register all default extractors manually (AOT-friendly)
-        _registry.RegisterExtractor(new PlainTextExtractor());
+        // Register specific extractors first, PlainTextExtractor last as fallback
+        // This order ensures newly registered extractors override older ones (forward search)
         _registry.RegisterExtractor(new HtmlExtractor());
         _registry.RegisterExtractor(new PdfExtractor());
         _registry.RegisterExtractor(new WordExtractor());
         _registry.RegisterExtractor(new ExcelExtractor());
         _registry.RegisterExtractor(new PowerPointExtractor());
+        
+        // Register PlainTextExtractor last so it acts as fallback for files under 1MB
+        _registry.RegisterExtractor(new PlainTextExtractor());
     }
     
-    public async Task<FileTextResult> ReadFromFileAsync(string filePath, CancellationToken cancellationToken = default)
+    private async Task<FileTextResult?> ProcessFileAsync(string filePath, SemaphoreSlim semaphore, CancellationToken cancellationToken)
+    {
+        await semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            return await ExtractFromSingleFileAsync(filePath);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+    
+    private async Task<FileTextResult?> ExtractFromSingleFileAsync(string filePath)
     {
         try
         {
@@ -82,63 +180,72 @@ public class TextExtractionService : ITextExtractionService
             {
                 OnExtractionError(filePath, new FileNotFoundException($"File not found: {filePath}"), 
                     $"File not found: {filePath}");
-                return new FileTextResult{ FilePath = filePath, Success = false, ErrorMessage = "File not found" };
+                return null;
             }
             
-            var extension = Path.GetExtension(filePath);
-            if (!_registry.TryGetExtractor(extension, out var extractor))
+            if (!_registry.TryGetExtractor(filePath, out var extractor))
             {
-                OnExtractionError(filePath, new NotSupportedException($"Unsupported file extension: {extension}"), 
-                    $"Unsupported file extension: {extension}");
-                return new FileTextResult{ FilePath = filePath, Success = false, ErrorMessage = "Unsupported file extension" };
+                OnExtractionError(filePath, new NotSupportedException($"No extractor available for file: {filePath}"), 
+                    $"No extractor available for file: {filePath}");
+                return null;
             }
             
-            var text = await extractor!.ExtractTextAsync(filePath, cancellationToken);
+            var text = await extractor!.ExtractTextAsync(filePath);
             
             return new FileTextResult
             {
                 FilePath = Path.GetFullPath(filePath),
-                Text = text,
+                Text = text ?? string.Empty,
                 Success = true
             };
         }
         catch (Exception ex)
         {
             OnExtractionError(filePath, ex, $"Error extracting text from {filePath}: {ex.Message}");
-            return new FileTextResult{ FilePath = filePath, Success = false, ErrorMessage = ex.Message };
+            return null;
         }
     }
     
-    private List<string> GetSupportedFilesFromDirectory(string directory, int maxDepth, bool recursive, int currentDepth = 0)
+    private async IAsyncEnumerable<string> GetSupportedFilesFromDirectoryAsync(
+        string directory, 
+        int maxDepth, 
+        bool recursive, 
+        [EnumeratorCancellation] CancellationToken cancellationToken = default,
+        int currentDepth = 0)
     {
-        var files = new List<string>();
+        cancellationToken.ThrowIfCancellationRequested();
         
-        try
+        // Get files in current directory
+        IEnumerable<string> directoryFiles = Directory.EnumerateFiles(directory);
+        
+        foreach (var file in directoryFiles)
         {
-            // Get files in current directory
-            var directoryFiles = Directory.GetFiles(directory)
-                .Where(file => _registry.IsSupported(Path.GetExtension(file)))
-                .ToList();
-            
-            files.AddRange(directoryFiles);
-            
-            // Recursively process subdirectories if enabled and within depth limit
-            if (recursive && currentDepth < maxDepth)
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return file;
+        }
+        
+        // Recursively process subdirectories if enabled and within depth limit
+        if (recursive && currentDepth < maxDepth)
+        {
+            IEnumerable<string> subdirectories;
+            try
             {
-                var subdirectories = Directory.GetDirectories(directory);
-                foreach (var subdirectory in subdirectories)
+                subdirectories = Directory.EnumerateDirectories(directory);
+            }
+            catch (Exception ex)
+            {
+                OnExtractionError(directory, ex, $"Error accessing subdirectories in {directory}: {ex.Message}");
+                yield break;
+            }
+            
+            foreach (var subdirectory in subdirectories)
+            {
+                await foreach (var file in GetSupportedFilesFromDirectoryAsync(subdirectory, maxDepth, recursive, cancellationToken, currentDepth + 1))
                 {
-                    var subFiles = GetSupportedFilesFromDirectory(subdirectory, maxDepth, recursive, currentDepth + 1);
-                    files.AddRange(subFiles);
+                    yield return file;
                 }
             }
         }
-        catch (Exception ex)
-        {
-            OnExtractionError(directory, ex, $"Error accessing directory {directory}: {ex.Message}");
-        }
-        
-        return files;
     }
     
     private void OnExtractionError(string filePath, Exception exception, string message)

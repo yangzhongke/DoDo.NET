@@ -1,89 +1,62 @@
-using System.Text;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
-using A = DocumentFormat.OpenXml.Drawing;
+using DocumentFormat.OpenXml;
+using System.Text;
 
 namespace DoDo.Net.TextExtraction.Extractors;
 
 /// <summary>
-/// Extracts text from PowerPoint presentations (.pptx format) using OpenXml
+/// Extractor for PowerPoint presentations using DocumentFormat.OpenXml
 /// </summary>
 public class PowerPointExtractor : ITextExtractor
 {
-    public IReadOnlySet<string> SupportedExtensions { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    public bool IsSupported(string filePath)
     {
-        ".pptx"
-    };
+        return FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.PowerPointExtensions);
+    }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
     {
         return await Task.Run(() =>
         {
-            using var document = PresentationDocument.Open(filePath, false);
-            var presentationPart = document.PresentationPart;
-            
-            if (presentationPart?.Presentation == null)
-                return string.Empty;
-                
-            var text = new StringBuilder();
-            var slideIdList = presentationPart.Presentation.SlideIdList;
-            
-            if (slideIdList != null)
+            try
             {
-                int slideNumber = 1;
-                foreach (var slideId in slideIdList.Elements<SlideId>())
+                using var document = PresentationDocument.Open(filePath, false);
+                var presentation = document.PresentationPart?.Presentation;
+                
+                if (presentation?.SlideIdList == null)
+                    return string.Empty;
+                
+                var textBuilder = new StringBuilder();
+                
+                foreach (var slideId in presentation.SlideIdList.Elements<SlideId>())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     
-                    var slidePart = (SlidePart)presentationPart.GetPartById(slideId.RelationshipId!);
-                    text.AppendLine($"=== Slide {slideNumber} ===");
-                    text.AppendLine(ExtractTextFromSlide(slidePart));
-                    text.AppendLine();
-                    slideNumber++;
+                    var slidePart = (SlidePart)document.PresentationPart!.GetPartById(slideId.RelationshipId!);
+                    ExtractTextFromSlide(slidePart, textBuilder);
+                    textBuilder.AppendLine();
                 }
+                
+                return textBuilder.ToString().Trim();
             }
-            
-            return text.ToString();
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to extract text from PowerPoint: {ex.Message}", ex);
+            }
         }, cancellationToken);
     }
-    
-    private static string ExtractTextFromSlide(SlidePart slidePart)
+
+    private static void ExtractTextFromSlide(SlidePart slidePart, StringBuilder textBuilder)
     {
-        var text = new StringBuilder();
+        var slide = slidePart.Slide;
         
-        if (slidePart.Slide?.CommonSlideData?.ShapeTree != null)
+        foreach (var textElement in slide.Descendants<DocumentFormat.OpenXml.Drawing.Text>())
         {
-            foreach (var shape in slidePart.Slide.CommonSlideData.ShapeTree.Elements())
+            if (!string.IsNullOrWhiteSpace(textElement.Text))
             {
-                if (shape is Shape shapeElement && shapeElement.TextBody != null)
-                {
-                    foreach (var paragraph in shapeElement.TextBody.Elements<A.Paragraph>())
-                    {
-                        var paragraphText = ExtractTextFromParagraph(paragraph);
-                        if (!string.IsNullOrWhiteSpace(paragraphText))
-                        {
-                            text.AppendLine(paragraphText);
-                        }
-                    }
-                }
+                textBuilder.AppendLine(textElement.Text);
             }
         }
-        
-        return text.ToString();
-    }
-    
-    private static string ExtractTextFromParagraph(A.Paragraph paragraph)
-    {
-        var text = new StringBuilder();
-        
-        foreach (var run in paragraph.Elements<A.Run>())
-        {
-            if (run.Text != null)
-            {
-                text.Append(run.Text.Text);
-            }
-        }
-        
-        return text.ToString();
     }
 }

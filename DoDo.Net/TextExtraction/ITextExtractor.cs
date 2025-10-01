@@ -6,9 +6,11 @@ namespace DoDo.Net.TextExtraction;
 public interface ITextExtractor
 {
     /// <summary>
-    /// The file extensions this extractor can handle (e.g., ".pdf", ".txt")
+    /// Determines if this extractor can handle the specified file
     /// </summary>
-    IReadOnlySet<string> SupportedExtensions { get; }
+    /// <param name="filePath">The path to the file to check</param>
+    /// <returns>True if this extractor can handle the file</returns>
+    bool IsSupported(string filePath);
     
     /// <summary>
     /// Extracts text from a file asynchronously

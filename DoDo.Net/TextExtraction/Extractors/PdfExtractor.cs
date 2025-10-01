@@ -8,10 +8,10 @@ namespace DoDo.Net.TextExtraction.Extractors;
 /// </summary>
 public class PdfExtractor : ITextExtractor
 {
-    public IReadOnlySet<string> SupportedExtensions { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    public bool IsSupported(string filePath)
     {
-        ".pdf"
-    };
+        return FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.PdfExtensions);
+    }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
     {
