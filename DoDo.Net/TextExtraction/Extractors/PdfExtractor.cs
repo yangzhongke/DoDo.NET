@@ -1,11 +1,10 @@
+using UglyToad.PdfPig;
 using System.Text;
-using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Canvas.Parser;
 
 namespace DoDo.Net.TextExtraction.Extractors;
 
 /// <summary>
-/// Extracts text from PDF files using iText7
+/// Extractor for PDF files using PdfPig (commercial-free alternative to iText7)
 /// </summary>
 public class PdfExtractor : ITextExtractor
 {
@@ -18,27 +17,29 @@ public class PdfExtractor : ITextExtractor
     {
         return await Task.Run(() =>
         {
-            var text = new StringBuilder();
-            
-            using var pdfReader = new PdfReader(filePath);
-            using var pdfDocument = new PdfDocument(pdfReader);
-            
-            int numberOfPages = pdfDocument.GetNumberOfPages();
-            
-            for (int i = 1; i <= numberOfPages; i++)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                using var document = PdfDocument.Open(filePath);
+                var textBuilder = new StringBuilder();
                 
-                var page = pdfDocument.GetPage(i);
-                string pageText = PdfTextExtractor.GetTextFromPage(page);
-                
-                if (!string.IsNullOrWhiteSpace(pageText))
+                foreach (var page in document.GetPages())
                 {
-                    text.AppendLine(pageText);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    
+                    var pageText = page.Text;
+                    if (!string.IsNullOrWhiteSpace(pageText))
+                    {
+                        textBuilder.AppendLine(pageText);
+                        textBuilder.AppendLine(); // Add separation between pages
+                    }
                 }
+                
+                return textBuilder.ToString().Trim();
             }
-            
-            return text.ToString();
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to extract text from PDF: {ex.Message}", ex);
+            }
         }, cancellationToken);
     }
 }

@@ -94,5 +94,4 @@ Good! Start!
 
 
 todo: CICD/AIT/
-custom reader checking/
-replace EPPPlus with free lib/支持一部ASyncEnumerable，降低海量文档处理的内存压力。
+custom reader checking
