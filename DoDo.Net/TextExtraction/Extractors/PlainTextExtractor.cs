@@ -3,70 +3,21 @@ using Ude;
 
 namespace DoDo.Net.TextExtraction.Extractors;
 
-/// <summary>
-/// Extracts text from plain text files with automatic encoding detection.
-/// Acts as a fallback for any file under 1MB that other extractors don't support.
-/// </summary>
-public class PlainTextExtractor : ITextExtractor
+public class PlainTextExtractor : AbstractPlainTextExtractor
 {
-    private const long MaxFileSizeBytes = 1024 * 1024; // 1MB
-
-    public bool IsSupported(string filePath)
+    /// <summary>
+    /// Common text file extensions
+    /// </summary>
+    private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-            return false;
-
-        // First check if it's a known text file extension
-        if (FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.TextExtensions))
-            return true;
-
-        // For unknown extensions, act as fallback for files under 1MB
-        return FileExtensionHelper.IsFileSizeUnder(filePath, MaxFileSizeBytes);
-    }
-
-    public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
+        ".txt", ".log", ".csv", ".tsv", ".json", ".xml", ".md", ".markdown", 
+        ".yml", ".yaml", ".ini", ".cfg", ".config", ".env", ".gitignore",
+        ".cs", ".js", ".ts", ".py", ".java", ".cpp", ".c", ".h", ".sql",
+        ".ps1", ".bat", ".sh", ".properties"
+    };
+    
+    public override bool IsSupported(string filePath)
     {
-        // Read file as bytes first for encoding detection
-        byte[] fileBytes = await File.ReadAllBytesAsync(filePath, cancellationToken);
-        
-        // Detect encoding
-        var detector = new CharsetDetector();
-        detector.Feed(fileBytes, 0, fileBytes.Length);
-        detector.DataEnd();
-        
-        Encoding encoding = Encoding.UTF8; // Default fallback
-        
-        if (detector.Charset != null)
-        {
-            try
-            {
-                encoding = Encoding.GetEncoding(detector.Charset);
-            }
-            catch
-            {
-                // If the detected encoding is not supported, fall back to UTF-8
-                encoding = Encoding.UTF8;
-            }
-        }
-        
-        // If detection fails or returns low confidence, try common encodings
-        if (detector.Confidence < 0.7)
-        {
-            // Try to detect BOM
-            if (fileBytes.Length >= 3 && fileBytes[0] == 0xEF && fileBytes[1] == 0xBB && fileBytes[2] == 0xBF)
-            {
-                encoding = Encoding.UTF8;
-            }
-            else if (fileBytes.Length >= 2 && fileBytes[0] == 0xFF && fileBytes[1] == 0xFE)
-            {
-                encoding = Encoding.Unicode; // UTF-16 LE
-            }
-            else if (fileBytes.Length >= 2 && fileBytes[0] == 0xFE && fileBytes[1] == 0xFF)
-            {
-                encoding = Encoding.BigEndianUnicode; // UTF-16 BE
-            }
-        }
-        
-        return encoding.GetString(fileBytes);
+        return FileExtensionHelper.HasExtension(filePath, TextExtensions);
     }
 }

@@ -147,6 +147,9 @@ public class TextExtractionService
     
     private void RegisterDefaultExtractors()
     {
+        // Register PlainTextExtractor first so it acts as fallback for files under 1MB
+        _registry.RegisterExtractor(new FallbackPlainTextExtractor());
+        
         // Register specific extractors first, PlainTextExtractor last as fallback
         // This order ensures newly registered extractors override older ones (forward search)
         _registry.RegisterExtractor(new HtmlExtractor());
@@ -154,8 +157,6 @@ public class TextExtractionService
         _registry.RegisterExtractor(new WordExtractor());
         _registry.RegisterExtractor(new ExcelExtractor());
         _registry.RegisterExtractor(new PowerPointExtractor());
-        
-        // Register PlainTextExtractor last so it acts as fallback for files under 1MB
         _registry.RegisterExtractor(new PlainTextExtractor());
     }
     

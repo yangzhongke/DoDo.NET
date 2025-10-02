@@ -12,9 +12,14 @@ namespace DoDo.Net.TextExtraction.Extractors;
 /// </summary>
 public class ExcelExtractor : ITextExtractor
 {
+    private static readonly HashSet<string> ExcelExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".xlsx", ".xls", ".csv"
+    };
+    
     public bool IsSupported(string filePath)
     {
-        return FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.ExcelExtensions);
+        return FileExtensionHelper.HasExtension(filePath, ExcelExtensions);
     }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)

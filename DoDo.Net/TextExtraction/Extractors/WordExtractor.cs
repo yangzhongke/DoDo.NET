@@ -10,9 +10,14 @@ namespace DoDo.Net.TextExtraction.Extractors;
 /// </summary>
 public class WordExtractor : ITextExtractor
 {
+    private static readonly HashSet<string> WordExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".docx", ".doc"
+    };
+    
     public bool IsSupported(string filePath)
     {
-        return FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.WordExtensions);
+        return FileExtensionHelper.HasExtension(filePath, WordExtensions);
     }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)

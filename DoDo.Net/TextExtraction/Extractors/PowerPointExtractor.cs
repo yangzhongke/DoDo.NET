@@ -1,6 +1,5 @@
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
-using DocumentFormat.OpenXml;
 using System.Text;
 
 namespace DoDo.Net.TextExtraction.Extractors;
@@ -10,9 +9,14 @@ namespace DoDo.Net.TextExtraction.Extractors;
 /// </summary>
 public class PowerPointExtractor : ITextExtractor
 {
+    private static readonly HashSet<string> PowerPointExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pptx", ".ppt"
+    };
+    
     public bool IsSupported(string filePath)
     {
-        return FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.PowerPointExtensions);
+        return FileExtensionHelper.HasExtension(filePath, PowerPointExtensions);
     }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)

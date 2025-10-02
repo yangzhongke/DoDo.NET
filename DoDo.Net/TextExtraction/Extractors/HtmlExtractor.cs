@@ -9,9 +9,14 @@ namespace DoDo.Net.TextExtraction.Extractors;
 /// </summary>
 public class HtmlExtractor : ITextExtractor
 {
+    private static readonly HashSet<string> HtmlExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".html", ".htm"
+    };
+    
     public bool IsSupported(string filePath)
     {
-        return FileExtensionHelper.HasExtension(filePath, FileExtensionHelper.HtmlExtensions);
+        return FileExtensionHelper.HasExtension(filePath, HtmlExtensions);
     }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
