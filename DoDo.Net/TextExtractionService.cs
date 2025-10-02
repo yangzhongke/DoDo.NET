@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 using DoDo.Net.Extractors;
+using DoDo.Net.Internal;
+using Microsoft.Extensions.Logging;
 
 namespace DoDo.Net;
 
@@ -9,14 +11,15 @@ namespace DoDo.Net;
 public class TextExtractionService
 {
     private readonly ExtractorRegistry _registry;
-    
-    /// <summary>
-    /// Event raised when an error occurs during text extraction
-    /// </summary>
-    public event EventHandler<TextExtractionErrorEventArgs>? ExtractionError;
-    
-    public TextExtractionService()
+    private readonly ILogger _logger;
+
+    public TextExtractionService(): this(new ConsoleLogger())
     {
+    }
+    
+    public TextExtractionService(ILogger logger)
+    {
+        _logger = logger;
         _registry = new ExtractorRegistry();
         RegisterDefaultExtractors();
     }
@@ -251,21 +254,6 @@ public class TextExtractionService
     
     private void OnExtractionError(string filePath, Exception exception, string message)
     {
-        var args = new TextExtractionErrorEventArgs
-        {
-            FilePath = filePath,
-            Exception = exception,
-            Message = message
-        };
-        
-        if (ExtractionError != null)
-        {
-            ExtractionError.Invoke(this, args);
-        }
-        else
-        {
-            // Default behavior: write to console
-            Console.WriteLine($"[ERROR] {message}");
-        }
+        _logger.LogError(exception, "Error processing file {FilePath}: {Message}", filePath, message);
     }
 }

@@ -3,15 +3,6 @@
 // Create the text extraction service
 var textExtractor = new TextExtractionService();
 
-// Subscribe to error events (optional)
-textExtractor.ExtractionError += (sender, args) =>
-{
-    Console.WriteLine($"[Custom Error Handler] {args.Message}");
-    Console.WriteLine($"File: {args.FilePath}");
-    Console.WriteLine($"Exception: {args.Exception.GetType().Name}");
-    Console.WriteLine();
-};
-
 Console.WriteLine("=== DoDo.Net Text Extraction Library Demo ===");
 Console.WriteLine();
 

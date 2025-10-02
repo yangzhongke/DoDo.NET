@@ -3,11 +3,6 @@ namespace DoDo.Net;
 public interface ITextExtractionService
 {
     /// <summary>
-    /// Event raised when an error occurs during text extraction
-    /// </summary>
-    event EventHandler<TextExtractionErrorEventArgs>? ExtractionError;
-
-    /// <summary>
     /// Gets all supported file extensions
     /// </summary>
     IReadOnlySet<string> SupportedExtensions { get; }

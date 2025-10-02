@@ -3,7 +3,7 @@ namespace DoDo.Net;
 /// <summary>
 /// Registry for managing text extractors with ordered registration and forward search
 /// </summary>
-public class ExtractorRegistry
+class ExtractorRegistry
 {
     private readonly List<ITextExtractor> _extractors = new();
     
