@@ -146,7 +146,7 @@ public class CustomLogExtractor : ITextExtractor
 {
     public bool IsSupported(string filePath)
     {
-        return FileExtensionHelper.HasExtension(filePath,
+        return FileHelper.HasExtension(filePath,
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".log" });
     }
 

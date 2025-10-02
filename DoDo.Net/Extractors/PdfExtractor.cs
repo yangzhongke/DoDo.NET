@@ -4,7 +4,7 @@ using UglyToad.PdfPig;
 namespace DoDo.Net.Extractors;
 
 /// <summary>
-/// Extractor for PDF files using PdfPig (commercial-free alternative to iText7)
+///     Extractor for PDF files using PdfPig (commercial-free alternative to iText7)
 /// </summary>
 public class PdfExtractor : ITextExtractor
 {
@@ -12,10 +12,10 @@ public class PdfExtractor : ITextExtractor
     {
         ".pdf"
     };
-    
+
     public bool IsSupported(string filePath)
     {
-        return FileExtensionHelper.HasExtension(filePath, PdfExtensions);
+        return FileHelper.HasExtension(filePath, PdfExtensions);
     }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
@@ -26,11 +26,11 @@ public class PdfExtractor : ITextExtractor
             {
                 using var document = PdfDocument.Open(filePath);
                 var textBuilder = new StringBuilder();
-                
+
                 foreach (var page in document.GetPages())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    
+
                     var pageText = page.Text;
                     if (!string.IsNullOrWhiteSpace(pageText))
                     {
@@ -38,7 +38,7 @@ public class PdfExtractor : ITextExtractor
                         textBuilder.AppendLine(); // Add separation between pages
                     }
                 }
-                
+
                 return textBuilder.ToString().Trim();
             }
             catch (Exception ex)

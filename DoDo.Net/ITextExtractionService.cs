@@ -5,7 +5,7 @@ public interface ITextExtractionService
     /// <summary>
     /// Gets all supported file extensions
     /// </summary>
-    IReadOnlySet<string> SupportedExtensions { get; }
+    ISet<string> SupportedExtensions { get; }
 
     /// <summary>
     /// Registers a custom text extractor

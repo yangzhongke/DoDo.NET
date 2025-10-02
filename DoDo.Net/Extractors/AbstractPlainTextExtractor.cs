@@ -14,7 +14,7 @@ public abstract class AbstractPlainTextExtractor : ITextExtractor
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
     {
         // Read file as bytes first for encoding detection
-        byte[] fileBytes = await File.ReadAllBytesAsync(filePath, cancellationToken);
+        byte[] fileBytes = await FileHelper.ReadAllBytesAsync(filePath, cancellationToken);
         
         // Detect encoding
         var detector = new CharsetDetector();

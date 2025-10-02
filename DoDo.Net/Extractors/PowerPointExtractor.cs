@@ -5,7 +5,7 @@ using DocumentFormat.OpenXml.Presentation;
 namespace DoDo.Net.Extractors;
 
 /// <summary>
-/// Extractor for PowerPoint presentations using DocumentFormat.OpenXml
+///     Extractor for PowerPoint presentations using DocumentFormat.OpenXml
 /// </summary>
 public class PowerPointExtractor : ITextExtractor
 {
@@ -13,10 +13,10 @@ public class PowerPointExtractor : ITextExtractor
     {
         ".pptx", ".ppt"
     };
-    
+
     public bool IsSupported(string filePath)
     {
-        return FileExtensionHelper.HasExtension(filePath, PowerPointExtensions);
+        return FileHelper.HasExtension(filePath, PowerPointExtensions);
     }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
@@ -27,21 +27,23 @@ public class PowerPointExtractor : ITextExtractor
             {
                 using var document = PresentationDocument.Open(filePath, false);
                 var presentation = document.PresentationPart?.Presentation;
-                
+
                 if (presentation?.SlideIdList == null)
+                {
                     return string.Empty;
-                
+                }
+
                 var textBuilder = new StringBuilder();
-                
+
                 foreach (var slideId in presentation.SlideIdList.Elements<SlideId>())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    
+
                     var slidePart = (SlidePart)document.PresentationPart!.GetPartById(slideId.RelationshipId!);
                     ExtractTextFromSlide(slidePart, textBuilder);
                     textBuilder.AppendLine();
                 }
-                
+
                 return textBuilder.ToString().Trim();
             }
             catch (Exception ex)
@@ -54,7 +56,7 @@ public class PowerPointExtractor : ITextExtractor
     private static void ExtractTextFromSlide(SlidePart slidePart, StringBuilder textBuilder)
     {
         var slide = slidePart.Slide;
-        
+
         foreach (var textElement in slide.Descendants<DocumentFormat.OpenXml.Drawing.Text>())
         {
             if (!string.IsNullOrWhiteSpace(textElement.Text))

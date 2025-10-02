@@ -6,7 +6,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 namespace DoDo.Net.Extractors;
 
 /// <summary>
-/// Extractor for Word documents using DocumentFormat.OpenXml
+///     Extractor for Word documents using DocumentFormat.OpenXml
 /// </summary>
 public class WordExtractor : ITextExtractor
 {
@@ -14,10 +14,10 @@ public class WordExtractor : ITextExtractor
     {
         ".docx", ".doc"
     };
-    
+
     public bool IsSupported(string filePath)
     {
-        return FileExtensionHelper.HasExtension(filePath, WordExtensions);
+        return FileHelper.HasExtension(filePath, WordExtensions);
     }
 
     public async Task<string> ExtractTextAsync(string filePath, CancellationToken cancellationToken = default)
@@ -28,13 +28,15 @@ public class WordExtractor : ITextExtractor
             {
                 using var document = WordprocessingDocument.Open(filePath, false);
                 var body = document.MainDocumentPart?.Document?.Body;
-                
+
                 if (body == null)
+                {
                     return string.Empty;
-                
+                }
+
                 var textBuilder = new StringBuilder();
                 ExtractTextFromElement(body, textBuilder);
-                
+
                 return textBuilder.ToString().Trim();
             }
             catch (Exception ex)
