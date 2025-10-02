@@ -6,11 +6,15 @@ namespace DoDo.Net.Extractors;
 /// </summary>
 public class FallbackPlainTextExtractor : AbstractPlainTextExtractor
 {
-    private const long MaxFileSizeBytes = 1024 * 1024; // 1MB
+    private readonly ExtractionOptions _options;
+    public FallbackPlainTextExtractor(ExtractionOptions options)
+    {
+        _options = options;
+    }
 
     public override bool IsSupported(string filePath)
     {
         // For unknown extensions, act as fallback for files under 1MB
-        return new FileInfo(filePath).Length < MaxFileSizeBytes;
+        return new FileInfo(filePath).Length < _options.FallbackPlainTextMaxFileSizeBytes;
     }
 }
