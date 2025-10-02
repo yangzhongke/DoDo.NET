@@ -1,9 +1,9 @@
+using System.Text;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using DocumentFormat.OpenXml;
-using System.Text;
 
-namespace DoDo.Net.TextExtraction.Extractors;
+namespace DoDo.Net.Extractors;
 
 /// <summary>
 /// Extractor for Word documents using DocumentFormat.OpenXml

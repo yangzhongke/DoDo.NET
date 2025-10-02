@@ -1,10 +1,10 @@
+using System.Globalization;
+using System.Text;
+using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
-using NPOI.HSSF.UserModel;
-using System.Text;
-using System.Globalization;
 
-namespace DoDo.Net.TextExtraction.Extractors;
+namespace DoDo.Net.Extractors;
 
 /// <summary>
 /// Extractor for Excel files using NPOI (commercial-free alternative to EPPlus)

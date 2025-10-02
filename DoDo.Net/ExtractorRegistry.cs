@@ -1,4 +1,4 @@
-namespace DoDo.Net.TextExtraction;
+namespace DoDo.Net;
 
 /// <summary>
 /// Registry for managing text extractors with ordered registration and forward search

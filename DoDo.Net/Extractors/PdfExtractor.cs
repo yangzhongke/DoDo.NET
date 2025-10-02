@@ -1,7 +1,7 @@
-using UglyToad.PdfPig;
 using System.Text;
+using UglyToad.PdfPig;
 
-namespace DoDo.Net.TextExtraction.Extractors;
+namespace DoDo.Net.Extractors;
 
 /// <summary>
 /// Extractor for PDF files using PdfPig (commercial-free alternative to iText7)

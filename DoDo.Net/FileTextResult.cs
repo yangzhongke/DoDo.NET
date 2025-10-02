@@ -1,4 +1,4 @@
-namespace DoDo.Net.TextExtraction;
+namespace DoDo.Net;
 
 /// <summary>
 /// Represents the result of text extraction from a file

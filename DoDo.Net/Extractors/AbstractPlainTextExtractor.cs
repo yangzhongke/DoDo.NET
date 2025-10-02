@@ -1,7 +1,7 @@
 using System.Text;
 using Ude;
 
-namespace DoDo.Net.TextExtraction.Extractors;
+namespace DoDo.Net.Extractors;
 
 /// <summary>
 /// Extracts text from plain text files with automatic encoding detection.

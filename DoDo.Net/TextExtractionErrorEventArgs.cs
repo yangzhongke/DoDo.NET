@@ -1,4 +1,4 @@
-namespace DoDo.Net.TextExtraction;
+namespace DoDo.Net;
 
 /// <summary>
 /// Event arguments for text extraction errors

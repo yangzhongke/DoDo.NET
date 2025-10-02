@@ -1,4 +1,4 @@
-namespace DoDo.Net.TextExtraction;
+namespace DoDo.Net;
 
 /// <summary>
 /// Helper class for file extension operations and common extension sets

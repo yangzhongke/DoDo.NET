@@ -1,4 +1,4 @@
-namespace DoDo.Net.TextExtraction;
+namespace DoDo.Net;
 
 /// <summary>
 /// Interface for text extractors that can extract text from specific file formats

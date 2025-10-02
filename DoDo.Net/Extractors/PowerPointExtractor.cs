@@ -1,8 +1,8 @@
+using System.Text;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
-using System.Text;
 
-namespace DoDo.Net.TextExtraction.Extractors;
+namespace DoDo.Net.Extractors;
 
 /// <summary>
 /// Extractor for PowerPoint presentations using DocumentFormat.OpenXml

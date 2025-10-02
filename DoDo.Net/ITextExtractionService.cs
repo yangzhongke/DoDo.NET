@@ -1,6 +1,4 @@
-using System.Runtime.CompilerServices;
-
-namespace DoDo.Net.TextExtraction;
+namespace DoDo.Net;
 
 public interface ITextExtractionService
 {

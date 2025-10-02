@@ -2,7 +2,7 @@ using System.Text;
 using HtmlAgilityPack;
 using Ude;
 
-namespace DoDo.Net.TextExtraction.Extractors;
+namespace DoDo.Net.Extractors;
 
 /// <summary>
 /// Extracts text from HTML files by removing HTML tags and decoding entities

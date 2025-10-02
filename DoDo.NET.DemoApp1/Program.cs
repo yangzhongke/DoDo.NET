@@ -1,4 +1,4 @@
-﻿using DoDo.Net.TextExtraction;
+﻿using DoDo.Net;
 
 // Create the text extraction service
 var textExtractor = new TextExtractionService();

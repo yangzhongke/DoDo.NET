@@ -1,7 +1,7 @@
-using DoDo.Net.TextExtraction.Extractors;
 using System.Runtime.CompilerServices;
+using DoDo.Net.Extractors;
 
-namespace DoDo.Net.TextExtraction;
+namespace DoDo.Net;
 
 /// <summary>
 /// Main service for extracting text from various file formats

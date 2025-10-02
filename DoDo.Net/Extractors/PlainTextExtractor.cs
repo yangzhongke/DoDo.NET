@@ -1,7 +1,4 @@
-using System.Text;
-using Ude;
-
-namespace DoDo.Net.TextExtraction.Extractors;
+namespace DoDo.Net.Extractors;
 
 public class PlainTextExtractor : AbstractPlainTextExtractor
 {
