@@ -13,5 +13,5 @@ public record FileTextResult
     /// <summary>
     ///     The extracted text content from the file
     /// </summary>
-    public string? Text { get; init; }
+    public required string Text { get; init; }
 }
