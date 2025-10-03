@@ -3,28 +3,31 @@ namespace DoDo.Net;
 public interface ITextExtractionService
 {
     /// <summary>
-    /// Gets all supported file extensions
+    ///     Gets all registered extractors
     /// </summary>
-    ISet<string> SupportedExtensions { get; }
+    IEnumerable<ITextExtractor> RegisteredExtractors { get; }
 
     /// <summary>
-    /// Registers a custom text extractor
+    ///     Registers a custom text extractor
     /// </summary>
     void RegisterExtractor(ITextExtractor extractor);
 
-    /// <summary>
-    /// Extracts text from multiple files
-    /// </summary>
-    IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(string[] files, 
-        CancellationToken cancellationToken = default);
+    IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(
+        IEnumerable<string> files, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Extracts text from all supported files in a directory
+    ///     Extracts text from multiple files
+    /// </summary>
+    IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(
+        IAsyncEnumerable<string> files, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Extracts text from all supported files in a directory
     /// </summary>
     IAsyncEnumerable<FileTextResult> ReadFromDirectoryAsync(
-        string directory, 
-        int maxDepth = int.MaxValue, 
+        string directory,
+        int maxDepth = int.MaxValue,
         bool recursive = true, CancellationToken cancellationToken = default);
 
-    Task<FileTextResult> ReadFromFileAsync(string filePath, CancellationToken cancellationToken = default);
+    Task<string> ReadFromFileAsync(string filePath, CancellationToken cancellationToken = default);
 }

@@ -130,3 +130,5 @@ custom reader checking
 .epub - 电子书文本提取
 .srt/.vtt - 字幕文件处理
 这些格式的支持可以显著扩展您的文本提取库的适用范围
+
+参考https://github.com/microsoft/markitdown

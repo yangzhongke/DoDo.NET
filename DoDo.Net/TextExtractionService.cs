@@ -8,7 +8,7 @@ namespace DoDo.Net;
 /// <summary>
 ///     Main service for extracting text from various file formats
 /// </summary>
-public class TextExtractionService
+public class TextExtractionService : ITextExtractionService
 {
     private readonly ILogger _logger;
     private readonly ExtractionOptions _options;
@@ -36,27 +36,49 @@ public class TextExtractionService
         _registry.RegisterExtractor(extractor);
     }
 
+    public IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(
+        IEnumerable<string> files, CancellationToken cancellationToken = default)
+    {
+        return ReadFromFilesAsync(files.ToAsyncEnumerable(), cancellationToken);
+    }
+
     /// <summary>
     ///     Extracts text from multiple files
     /// </summary>
     public async IAsyncEnumerable<FileTextResult> ReadFromFilesAsync(
-        string[] files, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        IAsyncEnumerable<string> files, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
-        var tasks = new List<Task<FileTextResult?>>();
+        var semaphore = new SemaphoreSlim(_options.ParallelCount);
+        var activeTasks = new List<Task<FileTextResult?>>();
+        var maxConcurrentTasks = _options.ParallelCount * 2; // Limit concurrent tasks to avoid overwhelming the system
 
         // Start all tasks
-        foreach (var filePath in files)
+        await foreach (var filePath in files.WithCancellation(cancellationToken))
         {
-            var task = ProcessFileAsync(filePath, semaphore, cancellationToken);
-            tasks.Add(task);
+            cancellationToken.ThrowIfCancellationRequested();
+            var task = ReadFileAsync(filePath, semaphore, cancellationToken);
+            activeTasks.Add(task);
+
+            // If we have too many concurrent tasks, wait for some to complete
+            if (activeTasks.Count >= maxConcurrentTasks)
+            {
+                var completedTask = await Task.WhenAny(activeTasks);
+                activeTasks.Remove(completedTask);
+
+                var result = await completedTask;
+                if (result != null)
+                {
+                    yield return result;
+                }
+            }
         }
 
         // Yield results as they complete
-        while (tasks.Count > 0)
+        // Process remaining tasks
+        while (activeTasks.Count > 0)
         {
-            var completedTask = await Task.WhenAny(tasks);
-            tasks.Remove(completedTask);
+            var completedTask = await Task.WhenAny(activeTasks);
+            activeTasks.Remove(completedTask);
 
             var result = await completedTask;
             if (result != null)
@@ -74,77 +96,11 @@ public class TextExtractionService
     public IAsyncEnumerable<FileTextResult> ReadFromDirectoryAsync(
         string directory,
         int maxDepth = int.MaxValue,
-        bool recursive = true,
-        CancellationToken cancellationToken = default)
+        bool recursive = true, CancellationToken cancellationToken = default)
     {
-        return ReadFromDirectoriesAsync(new[] { directory }, maxDepth, recursive, cancellationToken);
-    }
-
-    /// <summary>
-    ///     Extracts text from all supported files in multiple directories
-    /// </summary>
-    public async IAsyncEnumerable<FileTextResult> ReadFromDirectoriesAsync(
-        string[] directories,
-        int maxDepth = int.MaxValue,
-        bool recursive = true,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        var semaphore = new SemaphoreSlim(Environment.ProcessorCount);
-        var activeTasks = new List<Task<FileTextResult?>>();
-        const int maxConcurrentTasks = 50; // Limit concurrent tasks to avoid overwhelming the system
-
-        try
-        {
-            foreach (var directory in directories)
-            {
-                if (!Directory.Exists(directory))
-                {
-                    OnExtractionError(directory, new DirectoryNotFoundException($"Directory not found: {directory}"),
-                        $"Directory not found: {directory}");
-                    continue;
-                }
-
-                await foreach (var filePath in GetSupportedFilesFromDirectoryAsync(directory, maxDepth, recursive,
-                                   cancellationToken))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    // Start processing the file
-                    var task = ProcessFileAsync(filePath, semaphore, cancellationToken);
-                    activeTasks.Add(task);
-
-                    // If we have too many concurrent tasks, wait for some to complete
-                    if (activeTasks.Count >= maxConcurrentTasks)
-                    {
-                        var completedTask = await Task.WhenAny(activeTasks);
-                        activeTasks.Remove(completedTask);
-
-                        var result = await completedTask;
-                        if (result != null)
-                        {
-                            yield return result;
-                        }
-                    }
-                }
-            }
-
-            // Process remaining tasks
-            while (activeTasks.Count > 0)
-            {
-                var completedTask = await Task.WhenAny(activeTasks);
-                activeTasks.Remove(completedTask);
-
-                var result = await completedTask;
-                if (result != null)
-                {
-                    yield return result;
-                }
-            }
-        }
-        finally
-        {
-            semaphore.Dispose();
-        }
+        var files = GetSupportedFilesFromDirectoryAsync(directory, maxDepth, recursive,
+            cancellationToken);
+        return ReadFromFilesAsync(files, cancellationToken);
     }
 
     private void RegisterDefaultExtractors()
@@ -162,51 +118,61 @@ public class TextExtractionService
         _registry.RegisterExtractor(new PlainTextExtractor());
     }
 
-    private async Task<FileTextResult?> ProcessFileAsync(string filePath, SemaphoreSlim semaphore,
-        CancellationToken cancellationToken)
+    public async Task<string> ReadFromFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        await semaphore.WaitAsync(cancellationToken);
-        try
-        {
-            return await ExtractFromSingleFileAsync(filePath);
-        }
-        finally
-        {
-            semaphore.Release();
-        }
+        var result = await ReadFileAsync(filePath, null, cancellationToken);
+        return result?.Text ?? string.Empty;
     }
 
-    private async Task<FileTextResult?> ExtractFromSingleFileAsync(string filePath)
+    private async Task<FileTextResult?> ReadFileAsync(string filePath, SemaphoreSlim? semaphore = null,
+        CancellationToken cancellationToken = default)
     {
+        if (semaphore is not null)
+        {
+            await semaphore.WaitAsync(cancellationToken);
+        }
+
+        FileTextResult? ret;
+
         try
         {
-            if (!File.Exists(filePath))
-            {
-                OnExtractionError(filePath, new FileNotFoundException($"File not found: {filePath}"),
-                    $"File not found: {filePath}");
-                return null;
-            }
-
             if (!_registry.TryGetExtractor(filePath, out var extractor))
             {
-                OnExtractionError(filePath, new NotSupportedException($"No extractor available for file: {filePath}"),
+                OnExtractionError(filePath,
+                    new NotSupportedException($"No extractor available for file: {filePath}"),
                     $"No extractor available for file: {filePath}");
-                return null;
+                ret = null;
             }
-
-            var text = await extractor!.ExtractTextAsync(filePath);
-
-            return new FileTextResult
+            else
             {
-                FilePath = Path.GetFullPath(filePath),
-                Text = text
-            };
+                var text = await extractor!.ExtractTextAsync(filePath, cancellationToken);
+
+                ret = new FileTextResult
+                {
+                    FilePath = Path.GetFullPath(filePath),
+                    Text = text
+                };
+            }
         }
         catch (Exception ex)
         {
+            if (_options.ErrorHandling == ExtractionErrorHandling.ThrowOnFirstError)
+            {
+                throw;
+            }
+
             OnExtractionError(filePath, ex, $"Error extracting text from {filePath}: {ex.Message}");
-            return null;
+            ret = null;
         }
+        finally
+        {
+            if (semaphore is not null)
+            {
+                semaphore.Release();
+            }
+        }
+
+        return ret;
     }
 
     private async IAsyncEnumerable<string> GetSupportedFilesFromDirectoryAsync(
@@ -237,6 +203,11 @@ public class TextExtractionService
             }
             catch (Exception ex)
             {
+                if (_options.ErrorHandling == ExtractionErrorHandling.ThrowOnFirstError)
+                {
+                    throw;
+                }
+
                 OnExtractionError(directory, ex, $"Error accessing subdirectories in {directory}: {ex.Message}");
                 yield break;
             }
